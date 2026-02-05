@@ -11,7 +11,27 @@ const SessionLog = require('./models/SessionLog');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+const allowedOrigins = [
+    process.env.CLIENT_URL || 'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:4173'
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1 && !process.env.ALLOW_ALL_ORIGINS) {
+            // For dev simplicity, you might want to uncomment this line to allow all:
+            // return callback(null, true);
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            // return callback(new Error(msg), false);
+            return callback(null, true); // Permissive for now to avoid deployment frustration
+        }
+        return callback(null, true);
+    },
+    credentials: true
+}));
 app.use(express.json());
 
 // Database Connection

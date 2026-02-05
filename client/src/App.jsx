@@ -19,7 +19,7 @@ function App() {
               <h1 className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary leading-tight">
                 Morning Session Manager
               </h1>
-              <p className="text-slate-400 text-xs md:text-sm">Automated & Fair Participation</p>
+              <p className="text-slate-400 text-xs md:text-sm">Automated And Fair Participation</p>
             </div>
           </div>
 
