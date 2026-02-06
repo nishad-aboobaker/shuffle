@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { Play, Check, AlertCircle, RefreshCw, Send } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const DEFAULT_ACTIVITIES = [
     { id: 'host', name: 'Host', defaultCount: 1 },
@@ -30,7 +28,7 @@ export default function SessionController() {
 
     useEffect(() => {
         // Fetch unique batches from students
-        axios.get(`${API_URL}/students`).then(res => {
+        api.get('/students').then(res => {
             const unique = [...new Set(res.data.map(s => s.batch))];
             setBatches(unique);
             if (unique.length > 0) setSelectedBatch(unique[0]);
@@ -67,7 +65,7 @@ export default function SessionController() {
         }
 
         try {
-            const res = await axios.post(`${API_URL}/session/generate`, {
+            const res = await api.post('/session/generate', {
                 batch: selectedBatch,
                 activities
             });

@@ -2,11 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const Student = require('./models/Student');
 const BatchState = require('./models/BatchState');
 const SessionLog = require('./models/SessionLog');
+const Admin = require('./models/Admin');
+const auth = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,14 +22,9 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        // allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) === -1 && !process.env.ALLOW_ALL_ORIGINS) {
-            // For dev simplicity, you might want to uncomment this line to allow all:
-            // return callback(null, true);
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            // return callback(new Error(msg), false);
-            return callback(null, true); // Permissive for now to avoid deployment frustration
+            return callback(null, true);
         }
         return callback(null, true);
     },
@@ -43,10 +41,9 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/morning_s
     .catch(err => console.error('MongoDB Connection Error:', err));
 
 // --- EMAIL SERVICE (BREVO HTTP API) ---
-// We use HTTP API to avoid Port blocking on Cloud Servers (SMTP 587/465 often blocked)
 async function sendEmail({ to, subject, htmlContent, textContent }) {
     const url = 'https://api.brevo.com/v3/smtp/email';
-    const apiKey = process.env.EMAIL_PASS; // This must be the Brevo API Key
+    const apiKey = process.env.EMAIL_PASS;
     const senderEmail = process.env.EMAIL_USER;
 
     if (!apiKey || !senderEmail) {
@@ -83,28 +80,85 @@ async function sendEmail({ to, subject, htmlContent, textContent }) {
         return data;
     } catch (error) {
         console.error('Email Send Failed:', error.message);
-        // Don't throw to prevent crashing the main session generation loop
     }
 }
 
+/* --- AUTH ROUTES --- */
 
-/* --- API ROUTES --- */
-
-// 1. Get All Students
-app.get('/api/students', async (req, res) => {
+// Register Admin
+app.post('/api/auth/register', async (req, res) => {
+    const { instituteName, email, password } = req.body;
     try {
-        const students = await Student.find({ deleted: false });
+        let admin = await Admin.findOne({ email });
+        if (admin) {
+            return res.status(400).json({ msg: 'User already exists' });
+        }
+
+        admin = new Admin({ instituteName, email, password });
+
+        const salt = await bcrypt.genSalt(10);
+        admin.password = await bcrypt.hash(password, salt);
+
+        await admin.save();
+
+        const payload = { user: { id: admin.id } };
+        jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: 36000 }, (err, token) => {
+            if (err) throw err;
+            res.json({ token });
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
+
+// Login Admin
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        let admin = await Admin.findOne({ email });
+        if (!admin) {
+            return res.status(400).json({ msg: 'Invalid Credentials' });
+        }
+
+        const isMatch = await bcrypt.compare(password, admin.password);
+        if (!isMatch) {
+            return res.status(400).json({ msg: 'Invalid Credentials' });
+        }
+
+        const payload = { user: { id: admin.id } };
+        jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: 36000 }, (err, token) => {
+            if (err) throw err;
+            res.json({ token, instituteName: admin.instituteName });
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
+
+/* --- API ROUTES (PROTECTED) --- */
+
+// 1. Get All Students (Scoped to Admin)
+app.get('/api/students', auth, async (req, res) => {
+    try {
+        const students = await Student.find({ deleted: false, adminId: req.user.id });
         res.json(students);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// 2. Add Student
-app.post('/api/students', async (req, res) => {
+// 2. Add Student (Scoped to Admin)
+app.post('/api/students', auth, async (req, res) => {
     try {
         const { name, email, batch } = req.body;
-        const newStudent = new Student({ name, email, batch });
+        const newStudent = new Student({
+            name,
+            email,
+            batch,
+            adminId: req.user.id
+        });
         await newStudent.save();
         res.status(201).json(newStudent);
     } catch (error) {
@@ -113,81 +167,70 @@ app.post('/api/students', async (req, res) => {
 });
 
 // 3. Delete Student (Soft)
-app.delete('/api/students/:id', async (req, res) => {
+app.delete('/api/students/:id', auth, async (req, res) => {
     try {
-        await Student.findByIdAndUpdate(req.params.id, { deleted: true });
+        // Ensure student belongs to admin
+        const student = await Student.findOne({ _id: req.params.id, adminId: req.user.id });
+        if (!student) return res.status(404).json({ msg: 'Student not found or unauthorized' });
+
+        student.deleted = true;
+        await student.save();
         res.json({ message: 'Student deleted' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// 4. GENERATE SESSION (The Core Logic)
-app.post('/api/session/generate', async (req, res) => {
+// 4. GENERATE SESSION
+app.post('/api/session/generate', auth, async (req, res) => {
     const { batch, activities } = req.body;
-    // activities = [ { name: "News", count: 2 }, { name: "Intro", count: 1 } ]
 
     try {
-        // A. Get Batch State
-        let batchState = await BatchState.findOne({ batch });
+        // A. Get Batch State (Scoped)
+        let batchState = await BatchState.findOne({ batch, adminId: req.user.id });
         if (!batchState) {
-            batchState = new BatchState({ batch, activityCycles: {} });
+            batchState = new BatchState({
+                batch,
+                adminId: req.user.id,
+                activityCycles: {}
+            });
         }
+        if (!batchState.activityCycles) batchState.activityCycles = new Map();
 
-        // Ensure activityCycles is initialized (if migrating from old schema)
-        if (!batchState.activityCycles) {
-            batchState.activityCycles = new Map();
-        }
-
-        // B. Get All Eligible Students in Batch
-        const allStudents = await Student.find({ batch, deleted: false });
+        // B. Get All Eligible Students (Scoped)
+        const allStudents = await Student.find({ batch, deleted: false, adminId: req.user.id });
         if (allStudents.length === 0) {
             return res.status(400).json({ error: 'No students found in this batch.' });
         }
 
         const allStudentIds = allStudents.map(s => s._id.toString());
-
         let assignments = [];
-        let assignedStudentIdsThisSession = []; // To prevent one student getting 2 roles in same session
+        let assignedStudentIdsThisSession = [];
 
-        // C. Iterate through requested activities and assign
+        // C. Assignment Logic (Same as before)
         for (const act of activities) {
-            const activityName = act.name.trim(); // Case sensitive key? better to normalize?
-            // Let's keep it exact match for now, or normalize to LowerCase if consistency needed.
+            const activityName = act.name.trim();
             const activityKey = activityName.toLowerCase();
 
             for (let i = 0; i < act.count; i++) {
-                // 1. Get History for this activity
                 let historyForActivity = batchState.activityCycles.get(activityKey) || [];
-
-                // 2. Define Eligible Pool
-                // Eligible = (All Students) - (Assigned This Session) - (In History for this Activity)
                 let eligibleIds = allStudentIds.filter(id =>
                     !assignedStudentIdsThisSession.includes(id) &&
                     !historyForActivity.includes(id)
                 );
 
-                // 3. Handle Empty Pool (End of Cycle)
                 if (eligibleIds.length === 0) {
-                    // Cycle Finished! Reset history for this activity.
-                    // But we still exclude those assigned *this session* to prevent duplicates today.
                     historyForActivity = [];
-                    batchState.activityCycles.set(activityKey, []); // Reset in DB object
-
-                    // Re-calc eligible with fresh history
+                    batchState.activityCycles.set(activityKey, []);
                     eligibleIds = allStudentIds.filter(id => !assignedStudentIdsThisSession.includes(id));
                 }
 
                 if (eligibleIds.length === 0) {
-                    // Still empty? Means literally everyone is assigned TODAY? Or purely impossible.
                     console.warn(`Not enough students to fill ${activityName}`);
-                    continue; // Skip slot
+                    continue;
                 }
 
-                // 4. Pick Random
                 const randomId = eligibleIds[Math.floor(Math.random() * eligibleIds.length)];
-
-                // 5. Assign
                 const student = allStudents.find(s => s._id.toString() === randomId);
                 assignments.push({
                     studentName: student.name,
@@ -195,11 +238,7 @@ app.post('/api/session/generate', async (req, res) => {
                     activity: activityName
                 });
 
-                // 6. Update State
                 assignedStudentIdsThisSession.push(randomId);
-
-                // Add to history (make sure we work with the array reference or set it back)
-                // Maps in Mongoose can be tricky. Best to get, push, set.
                 let updatedHistory = batchState.activityCycles.get(activityKey) || [];
                 updatedHistory.push(randomId);
                 batchState.activityCycles.set(activityKey, updatedHistory);
@@ -208,8 +247,7 @@ app.post('/api/session/generate', async (req, res) => {
 
         await batchState.save();
 
-        // G. Send Emails (Async - don't block response too long, or await if critical)
-        // 1. Host Summary Construction
+        // G. Send Emails
         const hostHtml = `
       <h2>Morning Session: ${new Date().toLocaleDateString()}</h2>
       <ul>
@@ -217,54 +255,46 @@ app.post('/api/session/generate', async (req, res) => {
       </ul>
     `;
 
-        // Plain text for WhatsApp
-
-
-        // Check if a student was assigned "Host" activity
         const hostAssignment = assignments.find(a => a.activity.toLowerCase() === 'host');
-
-        // Send Summary to the Student Host (if exists)
         if (hostAssignment) {
             sendEmail({
                 to: hostAssignment.studentEmail,
-                subject: `[HOST DUTY] Morning Session Schedule - ${new Date().toLocaleDateString()}`,
+                subject: `[HOST DUTY] Morning Session - ${new Date().toLocaleDateString()}`,
                 htmlContent: `<p>Hi <b>${hostAssignment.studentName}</b>,</p>
-                       <p>You have been selected as the <b>Host</b>. Here is the schedule for tomorrow:</p>
+                       <p>You are the <b>Host</b>.</p>
                        ${hostHtml}`
             });
         }
 
-        // Send to Static Teacher/Admin Host (Backup/Supervisor)
-        if (process.env.HOST_EMAIL) {
+        // Send to Admin (The User)
+        const admin = await Admin.findById(req.user.id);
+        if (admin && admin.email) {
             sendEmail({
-                to: process.env.HOST_EMAIL,
-                subject: `[ADMIN] Morning Session Schedule - ${new Date().toLocaleDateString()}`,
+                to: admin.email,
+                subject: `[ADMIN] Session Schedule - ${new Date().toLocaleDateString()}`,
                 htmlContent: hostHtml
             });
         }
 
-        // 2. Student Emails
         assignments.forEach(a => {
-            // Skip sending generic email if the student is the Host (they already got one)
             if (a.activity.toLowerCase() === 'host') return;
-
             sendEmail({
                 to: a.studentEmail,
-                subject: `Morning Session Assignment: ${a.activity}`,
-                textContent: `Hi ${a.studentName},\n\nYou have been selected for ${a.activity} in the upcoming morning session.\n\nGood luck!`,
-                htmlContent: `<p>Hi <b>${a.studentName}</b>,</p><p>You have been selected for <b>${a.activity}</b> in the upcoming morning session.</p>`
+                subject: `assignment: ${a.activity}`,
+                textContent: `Hi ${a.studentName}, You have been selected for ${a.activity}.`,
+                htmlContent: `<p>Hi <b>${a.studentName}</b>,</p><p>You are selected for <b>${a.activity}</b>.</p>`
             });
         });
 
-        // H. Log Session
-        // "Round" calculation: Count previous sessions for this batch + 1
-        const previousSessionCount = await SessionLog.countDocuments({ batch });
+        // H. Log Session (Scoped)
+        const previousSessionCount = await SessionLog.countDocuments({ batch, adminId: req.user.id });
         const roundForTheseSelections = previousSessionCount + 1;
 
         const log = new SessionLog({
             batch,
             round: roundForTheseSelections,
-            assignments
+            assignments,
+            adminId: req.user.id
         });
         await log.save();
 
@@ -276,10 +306,10 @@ app.post('/api/session/generate', async (req, res) => {
     }
 });
 
-// 5. Get History
-app.get('/api/history', async (req, res) => {
+// 5. Get History (Scoped)
+app.get('/api/history', auth, async (req, res) => {
     try {
-        const logs = await SessionLog.find().sort({ createdAt: -1 });
+        const logs = await SessionLog.find({ adminId: req.user.id }).sort({ createdAt: -1 });
         res.json(logs);
     } catch (error) {
         res.status(500).json({ error: error.message });

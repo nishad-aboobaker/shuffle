@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { Calendar, RefreshCcw } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function HistoryView() {
     const [logs, setLogs] = useState([]);
@@ -15,7 +13,7 @@ export default function HistoryView() {
     const fetchHistory = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${API_URL}/history`);
+            const res = await api.get('/history');
             setLogs(res.data);
         } catch (err) {
             console.error(err);

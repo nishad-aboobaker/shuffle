@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { Trash2, UserPlus, Mail, Users } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function StudentManager() {
     const [students, setStudents] = useState([]);
@@ -16,7 +14,7 @@ export default function StudentManager() {
 
     const fetchStudents = async () => {
         try {
-            const res = await axios.get(`${API_URL}/students`);
+            const res = await api.get('/students');
             setStudents(res.data);
         } catch (err) {
             console.error(err);
@@ -27,7 +25,7 @@ export default function StudentManager() {
         e.preventDefault();
         setLoading(true);
         try {
-            await axios.post(`${API_URL}/students`, formData);
+            await api.post('/students', formData);
             setFormData({ name: '', email: '', batch: '' });
             fetchStudents();
             setError(null);
@@ -41,7 +39,7 @@ export default function StudentManager() {
     const handleDelete = async (id) => {
         if (!confirm('Are you sure?')) return;
         try {
-            await axios.delete(`${API_URL}/students/${id}`);
+            await api.delete(`/students/${id}`);
             fetchStudents();
         } catch (err) {
             console.error(err);
