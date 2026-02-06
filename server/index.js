@@ -42,42 +42,61 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/morning_s
     .then(() => console.log('MongoDB Connected'))
     .catch(err => console.error('MongoDB Connection Error:', err));
 
-// Email Transporter (Placeholder - needs real config)
-const transporter = nodemailer.createTransport({
-    host: 'smtp-relay.brevo.com',
-    port: 587,
-    secure: false,
-    auth: {
-        user: process.env.EMAIL_USER, // Your Brevo login email
-        pass: process.env.EMAIL_PASS  // Your Brevo API Key
-    },
-    connectionTimeout: 60000,
-    greetingTimeout: 30000,
-    debug: true,
-    logger: true
-});
+// --- EMAIL SERVICE (BREVO HTTP API) ---
+// We use HTTP API to avoid Port blocking on Cloud Servers (SMTP 587/465 often blocked)
+async function sendEmail({ to, subject, htmlContent, textContent }) {
+    const url = 'https://api.brevo.com/v3/smtp/email';
+    const apiKey = process.env.EMAIL_PASS; // This must be the Brevo API Key
+    const senderEmail = process.env.EMAIL_USER;
 
-// Verify connection configuration
-transporter.verify(function (error, success) {
-    if (error) {
-        console.error('SMTP Connection Check Failed:', error);
-    } else {
-        console.log('Server is ready to take our messages');
+    if (!apiKey || !senderEmail) {
+        console.error('Email configuration missing');
+        return;
     }
-});
+
+    const payload = {
+        sender: { name: "Morning Session App", email: senderEmail },
+        to: [{ email: to }],
+        subject: subject,
+        htmlContent: htmlContent,
+        textContent: textContent
+    };
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': apiKey,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            throw new Error(`Brevo API Error: ${response.status} - ${errorData}`);
+        }
+
+        const data = await response.json();
+        console.log(`Email sent to ${to}: ${data.messageId}`);
+        return data;
+    } catch (error) {
+        console.error('Email Send Failed:', error.message);
+        // Don't throw to prevent crashing the main session generation loop
+    }
+}
 
 app.post('/api/test-email', async (req, res) => {
     try {
-        const info = await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: process.env.EMAIL_USER, // Send to self
-            subject: "Test Email from Render",
-            text: "If you see this, email is working!"
+        const result = await sendEmail({
+            to: process.env.EMAIL_USER,
+            subject: "Test Email from Render (API Mode)",
+            textContent: "If you see this, the HTTP API is working!"
         });
-        res.json({ success: true, message: "Email sent!", messageId: info.messageId });
+        res.json({ success: true, result });
     } catch (error) {
-        console.error('Test Email Failed:', error);
-        res.status(500).json({ error: error.message, details: error });
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -220,27 +239,22 @@ app.post('/api/session/generate', async (req, res) => {
 
         // Send Summary to the Student Host (if exists)
         if (hostAssignment) {
-            // Email
-            transporter.sendMail({
-                from: process.env.EMAIL_USER,
+            sendEmail({
                 to: hostAssignment.studentEmail,
                 subject: `[HOST DUTY] Morning Session Schedule - ${new Date().toLocaleDateString()}`,
-                html: `<p>Hi <b>${hostAssignment.studentName}</b>,</p>
+                htmlContent: `<p>Hi <b>${hostAssignment.studentName}</b>,</p>
                        <p>You have been selected as the <b>Host</b>. Here is the schedule for tomorrow:</p>
                        ${hostHtml}`
-            }).catch(err => console.error("Student Host Email Failed", err));
-
-
+            });
         }
 
         // Send to Static Teacher/Admin Host (Backup/Supervisor)
         if (process.env.HOST_EMAIL) {
-            transporter.sendMail({
-                from: process.env.EMAIL_USER,
+            sendEmail({
                 to: process.env.HOST_EMAIL,
                 subject: `[ADMIN] Morning Session Schedule - ${new Date().toLocaleDateString()}`,
-                html: hostHtml
-            }).catch(err => console.error("Admin Host Email Failed", err));
+                htmlContent: hostHtml
+            });
         }
 
         // 2. Student Emails
@@ -248,13 +262,12 @@ app.post('/api/session/generate', async (req, res) => {
             // Skip sending generic email if the student is the Host (they already got one)
             if (a.activity.toLowerCase() === 'host') return;
 
-            transporter.sendMail({
-                from: process.env.EMAIL_USER,
+            sendEmail({
                 to: a.studentEmail,
                 subject: `Morning Session Assignment: ${a.activity}`,
-                text: `Hi ${a.studentName},\n\nYou have been selected for ${a.activity} in the upcoming morning session.\n\nGood luck!`,
-                html: `<p>Hi <b>${a.studentName}</b>,</p><p>You have been selected for <b>${a.activity}</b> in the upcoming morning session.</p>`
-            }).catch(err => console.error(`Email to ${a.studentEmail} failed`, err));
+                textContent: `Hi ${a.studentName},\n\nYou have been selected for ${a.activity} in the upcoming morning session.\n\nGood luck!`,
+                htmlContent: `<p>Hi <b>${a.studentName}</b>,</p><p>You have been selected for <b>${a.activity}</b> in the upcoming morning session.</p>`
+            });
         });
 
         // H. Log Session
