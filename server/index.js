@@ -9,6 +9,7 @@ const Student = require('./models/Student');
 const BatchState = require('./models/BatchState');
 const SessionLog = require('./models/SessionLog');
 const Admin = require('./models/Admin');
+const Otp = require('./models/Otp');
 const auth = require('./middleware/auth');
 
 const app = express();
@@ -85,21 +86,76 @@ async function sendEmail({ to, subject, htmlContent, textContent }) {
 
 /* --- AUTH ROUTES --- */
 
-// Register Admin
-app.post('/api/auth/register', async (req, res) => {
-    const { instituteName, email, password } = req.body;
+// 1. Send OTP
+app.post('/api/auth/send-otp', async (req, res) => {
+    const { email } = req.body;
     try {
+        // Check if user exists
+        let admin = await Admin.findOne({ email });
+        if (admin) {
+            return res.status(400).json({ error: 'User already exists with this email' });
+        }
+
+        // Generate and Hash OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const salt = await bcrypt.genSalt(10);
+        const hashedOtp = await bcrypt.hash(otp, salt);
+
+        // Save to DB (Upsert to replace old OTP if exists)
+        await Otp.findOneAndUpdate(
+            { email },
+            { otp: hashedOtp, createdAt: Date.now() },
+            { upsert: true, new: true }
+        );
+
+        // Send Email
+        await sendEmail({
+            to: email,
+            subject: 'Verify Your Email - Morning Session Manager',
+            htmlContent: `<h2>Verification Code</h2><p>Your OTP is: <b>${otp}</b></p><p>This code expires in 5 minutes.</p>`
+        });
+
+        res.json({ success: true, msg: 'OTP sent to email' });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error sending OTP' });
+    }
+});
+
+// 2. Register (Verify OTP & Create)
+app.post('/api/auth/register', async (req, res) => {
+    const { instituteName, email, password, otp } = req.body;
+    try {
+        // Verify OTP
+        const otpDoc = await Otp.findOne({ email });
+        if (!otpDoc) {
+            return res.status(400).json({ msg: 'OTP expired or invalid. Please request a new one.' });
+        }
+
+        const isMatch = await bcrypt.compare(otp, otpDoc.otp);
+        if (!isMatch) {
+            return res.status(400).json({ msg: 'Invalid verification code.' });
+        }
+
+        // Check if user exists (Double check)
         let admin = await Admin.findOne({ email });
         if (admin) {
             return res.status(400).json({ msg: 'User already exists' });
         }
 
+        // Create Admin
         admin = new Admin({ instituteName, email, password });
 
         const salt = await bcrypt.genSalt(10);
         admin.password = await bcrypt.hash(password, salt);
 
         await admin.save();
+
+        // Delete used OTP
+        await Otp.deleteOne({ email });
+
+        const payload = { user: { id: admin.id } };
 
         const payload = { user: { id: admin.id } };
         jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: 36000 }, (err, token) => {
