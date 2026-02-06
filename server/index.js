@@ -87,20 +87,6 @@ async function sendEmail({ to, subject, htmlContent, textContent }) {
     }
 }
 
-app.post('/api/test-email', async (req, res) => {
-    try {
-        const result = await sendEmail({
-            to: process.env.EMAIL_USER,
-            subject: "Test Email from Render (API Mode)",
-            textContent: "If you see this, the HTTP API is working!"
-        });
-        res.json({ success: true, result });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-
 
 /* --- API ROUTES --- */
 
@@ -272,9 +258,7 @@ app.post('/api/session/generate', async (req, res) => {
 
         // H. Log Session
         // "Round" calculation: Count previous sessions for this batch + 1
-        console.log(`[DEBUG] Calculating round for batch: "${batch}"`);
         const previousSessionCount = await SessionLog.countDocuments({ batch });
-        console.log(`[DEBUG] Found ${previousSessionCount} previous logs. Setting round to ${previousSessionCount + 1}`);
         const roundForTheseSelections = previousSessionCount + 1;
 
         const log = new SessionLog({
