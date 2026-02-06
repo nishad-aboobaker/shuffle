@@ -11,7 +11,7 @@ const BatchStateSchema = new mongoose.Schema({
     }
 });
 
-});
+
 
 BatchStateSchema.index({ batch: 1, adminId: 1 }, { unique: true });
 
