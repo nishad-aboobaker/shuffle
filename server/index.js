@@ -44,7 +44,9 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/morning_s
 
 // Email Transporter (Placeholder - needs real config)
 const transporter = nodemailer.createTransport({
-    service: 'gmail', // or configured host/port
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // true for 465, false for other ports
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
