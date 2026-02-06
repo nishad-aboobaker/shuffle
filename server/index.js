@@ -186,21 +186,30 @@ app.post('/api/session/generate', auth, async (req, res) => {
     const { batch, activities } = req.body;
 
     try {
-        // A. Get Batch State (Scoped)
-        let batchState = await BatchState.findOne({ batch, adminId: req.user.id });
+        // A. Handle "All Batches" Mode
+        // We use a special internal ID for the state of the "All Institute" pool
+        const stateKey = batch === 'ALL' ? '_ALL_INSTITUTE_' : batch;
+
+        // B. Get Batch State (Scoped)
+        let batchState = await BatchState.findOne({ batch: stateKey, adminId: req.user.id });
         if (!batchState) {
             batchState = new BatchState({
-                batch,
+                batch: stateKey,
                 adminId: req.user.id,
                 activityCycles: {}
             });
         }
         if (!batchState.activityCycles) batchState.activityCycles = new Map();
 
-        // B. Get All Eligible Students (Scoped)
-        const allStudents = await Student.find({ batch, deleted: false, adminId: req.user.id });
+        // C. Get All Eligible Students (Scoped)
+        let studentQuery = { deleted: false, adminId: req.user.id };
+        if (batch !== 'ALL') {
+            studentQuery.batch = batch;
+        }
+
+        const allStudents = await Student.find(studentQuery);
         if (allStudents.length === 0) {
-            return res.status(400).json({ error: 'No students found in this batch.' });
+            return res.status(400).json({ error: 'No students found.' });
         }
 
         const allStudentIds = allStudents.map(s => s._id.toString());
@@ -287,6 +296,8 @@ app.post('/api/session/generate', auth, async (req, res) => {
         });
 
         // H. Log Session (Scoped)
+        // Ensure we count rounds based on the stateKey (so ALL mode has its own round 1, 2, 3)
+        // But store the display name 'ALL' or 'Batch A' in the log
         const previousSessionCount = await SessionLog.countDocuments({ batch, adminId: req.user.id });
         const roundForTheseSelections = previousSessionCount + 1;
 

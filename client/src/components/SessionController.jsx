@@ -42,11 +42,27 @@ export default function SessionController() {
         }));
     };
 
+    const [customName, setCustomName] = useState('');
+    const [customCount, setCustomCount] = useState(1);
+
     const updateCount = (id, val) => {
         setConfig(prev => ({
             ...prev,
             [id]: { ...prev[id], count: parseInt(val) || 1 }
         }));
+    };
+
+    const addCustomActivity = (e) => {
+        e.preventDefault();
+        if (!customName.trim()) return;
+
+        const id = `custom_${Date.now()}`;
+        setConfig(prev => ({
+            ...prev,
+            [id]: { active: true, count: parseInt(customCount), name: customName }
+        }));
+        setCustomName('');
+        setCustomCount(1);
     };
 
     const handleGenerate = async () => {
@@ -94,35 +110,64 @@ export default function SessionController() {
                         className="w-full bg-dark border border-slate-600 rounded p-3 text-base md:text-lg outline-none focus:border-primary"
                     >
                         <option value="" disabled>-- Choose Batch --</option>
+                        <option value="ALL">All Batches (Entire Institute)</option>
                         {batches.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
                 </div>
 
                 <div className="space-y-3 md:space-y-4 mb-8">
-                    <label className="block text-slate-400 text-sm md:text-base">Configure Activities</label>
-                    {DEFAULT_ACTIVITIES.map(act => (
-                        <div key={act.id} className={`flex flex-wrap sm:flex-nowrap items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border transition-all ${config[act.id].active ? 'bg-primary/10 border-primary' : 'bg-dark border-slate-700'}`}>
+                    <div className="flex justify-between items-center">
+                        <label className="block text-slate-400 text-sm md:text-base">Configure Activities</label>
+                    </div>
+
+                    {/* Custom Activity Adder */}
+                    <div className="bg-dark/50 p-3 rounded-lg border border-slate-700/50 flex flex-col sm:flex-row gap-2">
+                        <input
+                            type="text"
+                            placeholder="Add Custom Activity (e.g. Surprise Quiz)"
+                            className="flex-1 bg-dark border border-slate-600 rounded p-2 text-sm outline-none focus:border-primary"
+                            value={customName}
+                            onChange={(e) => setCustomName(e.target.value)}
+                        />
+                        <input
+                            type="number"
+                            min="1"
+                            className="w-20 bg-dark border border-slate-600 rounded p-2 text-sm outline-none focus:border-primary text-center"
+                            value={customCount}
+                            onChange={(e) => setCustomCount(e.target.value)}
+                        />
+                        <button
+                            onClick={addCustomActivity}
+                            disabled={!customName.trim()}
+                            className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+                        >
+                            Add
+                        </button>
+                    </div>
+
+                    {Object.entries(config).map(([id, act]) => (
+                        <div key={id} className={`flex flex-wrap sm:flex-nowrap items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border transition-all ${act.active ? 'bg-primary/10 border-primary' : 'bg-dark border-slate-700'}`}>
                             <div className="flex items-center gap-3 flex-1 min-w-[200px]">
                                 <input
                                     type="checkbox"
-                                    checked={config[act.id].active}
-                                    onChange={() => toggleActivity(act.id)}
+                                    checked={act.active}
+                                    onChange={() => toggleActivity(id)}
                                     className="w-5 h-5 accent-primary cursor-pointer shrink-0"
                                 />
-                                <span className={`font-medium ${config[act.id].active ? 'text-white' : 'text-slate-400'}`}>
+                                <span className={`font-medium ${act.active ? 'text-white' : 'text-slate-400'}`}>
                                     {act.name}
                                 </span>
                             </div>
 
-                            {config[act.id].active && (
+                            {act.active && (
                                 <div className="flex items-center gap-2 ml-8 sm:ml-0 w-full sm:w-auto">
                                     <span className="text-sm text-slate-400 whitespace-nowrap">Count:</span>
                                     <input
                                         type="number"
                                         min="1"
                                         className="w-full sm:w-20 bg-surface border border-slate-600 rounded p-1.5 text-center outline-none focus:border-primary"
-                                        value={config[act.id].count}
-                                        onChange={(e) => updateCount(act.id, e.target.value)}
+                                        value={act.count}
+                                        onChange={(e) => updateCount(id, e.target.value)}
                                     />
                                 </div>
                             )}
