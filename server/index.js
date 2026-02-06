@@ -44,17 +44,17 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/morning_s
 
 // Email Transporter (Placeholder - needs real config)
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
+    host: 'smtp-relay.brevo.com',
     port: 587,
-    secure: false, // true for 465, false for other ports
+    secure: false,
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: process.env.EMAIL_USER, // Your Brevo login email
+        pass: process.env.EMAIL_PASS  // Your Brevo API Key
     },
-    connectionTimeout: 60000, // 60 seconds
+    connectionTimeout: 60000,
     greetingTimeout: 30000,
-    debug: true, // show debug output
-    logger: true // log to console
+    debug: true,
+    logger: true
 });
 
 // Verify connection configuration
