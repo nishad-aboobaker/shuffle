@@ -97,17 +97,17 @@ export default function SessionController() {
         <div className="max-w-3xl mx-auto space-y-8">
 
             {/* Configuration Panel */}
-            <div className="bg-surface border border-slate-700 p-5 md:p-8 rounded-xl shadow-lg">
+            <div className="bg-white border border-gray-200 p-5 md:p-8 rounded-lg shadow-sm">
                 <h2 className="text-xl md:text-2xl font-bold mb-6 flex items-center gap-2">
                     <Play className="text-primary" /> Start Morning Session
                 </h2>
 
                 <div className="mb-6">
-                    <label className="block text-slate-400 mb-2 text-sm md:text-base">Select Batch</label>
+                    <label className="block text-gray-700 font-medium mb-2 text-sm md:text-base">Select Batch</label>
                     <select
                         value={selectedBatch}
                         onChange={e => setSelectedBatch(e.target.value)}
-                        className="w-full bg-dark border border-slate-600 rounded p-3 text-base md:text-lg outline-none focus:border-primary"
+                        className="w-full bg-white border border-gray-300 rounded p-3 text-base md:text-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary text-gray-900"
                     >
                         <option value="" disabled>-- Choose Batch --</option>
                         <option value="ALL">All Batches (Entire Institute)</option>
@@ -117,36 +117,36 @@ export default function SessionController() {
 
                 <div className="space-y-3 md:space-y-4 mb-8">
                     <div className="flex justify-between items-center">
-                        <label className="block text-slate-400 text-sm md:text-base">Configure Activities</label>
+                        <label className="block text-gray-700 font-medium text-sm md:text-base">Configure Activities</label>
                     </div>
 
                     {/* Custom Activity Adder */}
-                    <div className="bg-dark/50 p-3 rounded-lg border border-slate-700/50 flex flex-col sm:flex-row gap-2">
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 flex flex-col sm:flex-row gap-2">
                         <input
                             type="text"
                             placeholder="Add Custom Activity (e.g. Surprise Quiz)"
-                            className="flex-1 bg-dark border border-slate-600 rounded p-2 text-sm outline-none focus:border-primary"
+                            className="flex-1 bg-white border border-gray-300 rounded p-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-gray-900"
                             value={customName}
                             onChange={(e) => setCustomName(e.target.value)}
                         />
                         <input
                             type="number"
                             min="1"
-                            className="w-20 bg-dark border border-slate-600 rounded p-2 text-sm outline-none focus:border-primary text-center"
+                            className="w-20 bg-white border border-gray-300 rounded p-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-center text-gray-900"
                             value={customCount}
                             onChange={(e) => setCustomCount(e.target.value)}
                         />
                         <button
                             onClick={addCustomActivity}
                             disabled={!customName.trim()}
-                            className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+                            className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded text-sm disabled:opacity-50 font-medium"
                         >
                             Add
                         </button>
                     </div>
 
                     {Object.entries(config).map(([id, act]) => (
-                        <div key={id} className={`flex flex-wrap sm:flex-nowrap items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border transition-all ${act.active ? 'bg-primary/10 border-primary' : 'bg-dark border-slate-700'}`}>
+                        <div key={id} className={`flex flex-wrap sm:flex-nowrap items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border transition-all ${act.active ? 'bg-blue-50 border-primary' : 'bg-white border-gray-200'}`}>
                             <div className="flex items-center gap-3 flex-1 min-w-[200px]">
                                 <input
                                     type="checkbox"
@@ -154,18 +154,18 @@ export default function SessionController() {
                                     onChange={() => toggleActivity(id)}
                                     className="w-5 h-5 accent-primary cursor-pointer shrink-0"
                                 />
-                                <span className={`font-medium ${act.active ? 'text-white' : 'text-slate-400'}`}>
+                                <span className={`font-medium ${act.active ? 'text-gray-900' : 'text-gray-600'}`}>
                                     {act.name}
                                 </span>
                             </div>
 
                             {act.active && (
                                 <div className="flex items-center gap-2 ml-8 sm:ml-0 w-full sm:w-auto">
-                                    <span className="text-sm text-slate-400 whitespace-nowrap">Count:</span>
+                                    <span className="text-sm text-gray-600 whitespace-nowrap">Count:</span>
                                     <input
                                         type="number"
                                         min="1"
-                                        className="w-full sm:w-20 bg-surface border border-slate-600 rounded p-1.5 text-center outline-none focus:border-primary"
+                                        className="w-full sm:w-20 bg-white border border-gray-300 rounded p-1.5 text-center outline-none focus:border-primary focus:ring-1 focus:ring-primary text-gray-900"
                                         value={act.count}
                                         onChange={(e) => updateCount(id, e.target.value)}
                                     />
@@ -176,7 +176,7 @@ export default function SessionController() {
                 </div>
 
                 {error && (
-                    <div className="p-4 bg-red-500/20 text-red-200 rounded-lg flex items-center gap-2 mb-4 text-sm md:text-base">
+                    <div className="p-4 bg-red-50 text-red-700 rounded-lg flex items-center gap-2 mb-4 text-sm md:text-base border border-red-200">
                         <AlertCircle size={20} className="shrink-0" /> {error}
                     </div>
                 )}
@@ -184,7 +184,7 @@ export default function SessionController() {
                 <button
                     onClick={handleGenerate}
                     disabled={loading || !selectedBatch}
-                    className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white py-3 md:py-4 rounded-lg font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-primary hover:bg-blue-700 text-white py-3 md:py-4 rounded-lg font-semibold text-lg shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {loading ? <RefreshCw className="animate-spin" /> : <Send />}
                     {loading ? 'Processing...' : 'Generate & Send Emails'}
@@ -193,31 +193,31 @@ export default function SessionController() {
 
             {/* Results Panel */}
             {result && (
-                <div className="bg-surface border border-green-500/30 p-8 rounded-xl shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-emerald-400"></div>
-                    <h3 className="text-xl font-bold text-green-400 mb-6 flex items-center gap-2">
-                        <Check className="w-6 h-6 border-2 border-green-400 rounded-full p-0.5" />
+                <div className="bg-white border border-green-200 p-8 rounded-lg shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-green-600"></div>
+                    <h3 className="text-xl font-bold text-green-700 mb-6 flex items-center gap-2">
+                        <Check className="w-6 h-6 border-2 border-green-600 rounded-full p-0.5" />
                         Selection Complete
                     </h3>
 
                     <div className="grid md:grid-cols-2 gap-4">
                         {result.assignments.map((assign, idx) => (
-                            <div key={idx} className="bg-dark p-4 rounded-lg border border-slate-700 flex flex-col">
-                                <span className="text-xs text-slate-500 uppercase tracking-wider mb-1">
+                            <div key={idx} className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col">
+                                <span className="text-xs text-gray-500 uppercase tracking-wider mb-1 font-medium">
                                     {assign.activity}
                                 </span>
-                                <div className="text-lg font-semibold text-white">
+                                <div className="text-lg font-semibold text-gray-900">
                                     {assign.studentName}
                                 </div>
-                                <div className="text-sm text-slate-400">
+                                <div className="text-sm text-gray-600">
                                     {assign.studentEmail}
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-slate-700 text-slate-400 text-sm text-center">
-                        Current Batch Round: <span className="text-white font-mono">{result.round}</span>
+                    <div className="mt-6 pt-4 border-t border-gray-200 text-gray-600 text-sm text-center">
+                        Current Batch Round: <span className="text-gray-900 font-mono font-semibold">{result.round}</span>
                         <span className="mx-2">•</span>
                         Emails have been sent successfully.
                     </div>

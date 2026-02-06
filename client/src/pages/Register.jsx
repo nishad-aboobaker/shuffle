@@ -86,79 +86,79 @@ export default function Register() {
     };
 
     return (
-        <div className="min-h-screen bg-dark flex items-center justify-center p-4">
-            <div className="bg-surface p-8 rounded-lg shadow-xl w-full max-w-md border border-gray-800">
-                <h2 className="text-2xl font-bold text-white mb-6 text-center flex items-center justify-center gap-2">
-                    <UserPlus /> Create Institute Account
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md border border-gray-200">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center flex items-center justify-center gap-2">
+                    <UserPlus className="text-primary" /> Create Institute Account
                 </h2>
-                {error && <div className="bg-red-500/10 text-red-400 p-3 rounded mb-4 text-sm">{error}</div>}
+                {error && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm border border-red-200">{error}</div>}
 
                 {step === 1 ? (
                     <form onSubmit={handleSendOtp} className="space-y-4">
                         <div>
-                            <label className="block text-slate-400 text-sm mb-1">Institute Name</label>
+                            <label className="block text-gray-700 text-sm font-medium mb-1">Institute Name</label>
                             <input
                                 type="text"
                                 required
-                                className="w-full bg-dark border border-gray-700 rounded p-2 text-white focus:border-primary outline-none"
+                                className="w-full bg-white border border-gray-300 rounded p-2.5 text-gray-900 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                                 value={formData.instituteName}
                                 onChange={e => setFormData({ ...formData, instituteName: e.target.value })}
                             />
                         </div>
                         <div>
-                            <label className="block text-slate-400 text-sm mb-1">Email</label>
+                            <label className="block text-gray-700 text-sm font-medium mb-1">Email</label>
                             <input
                                 type="email"
                                 required
-                                className="w-full bg-dark border border-gray-700 rounded p-2 text-white focus:border-primary outline-none"
+                                className="w-full bg-white border border-gray-300 rounded p-2.5 text-gray-900 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                                 value={formData.email}
                                 onChange={e => setFormData({ ...formData, email: e.target.value })}
                             />
                         </div>
                         <div>
-                            <label className="block text-slate-400 text-sm mb-1">Password</label>
+                            <label className="block text-gray-700 text-sm font-medium mb-1">Password</label>
                             <input
                                 type="password"
                                 required
-                                className="w-full bg-dark border border-gray-700 rounded p-2 text-white focus:border-primary outline-none"
+                                className="w-full bg-white border border-gray-300 rounded p-2.5 text-gray-900 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                                 value={formData.password}
                                 onChange={e => setFormData({ ...formData, password: e.target.value })}
                             />
                         </div>
                         <button
                             disabled={loading}
-                            className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-2 rounded transition-colors flex justify-center items-center"
+                            className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-2.5 rounded transition-colors flex justify-center items-center disabled:opacity-50"
                         >
                             {loading ? <Loader2 className="animate-spin" /> : 'Next: Verify Email'}
                         </button>
                     </form>
                 ) : (
                     <form onSubmit={handleRegister} className="space-y-4">
-                        <div className="text-center text-slate-400 mb-4 text-sm">
-                            We sent a 6-digit code to <b>{formData.email}</b>.
+                        <div className="text-center text-gray-600 mb-4 text-sm bg-blue-50 p-3 rounded border border-blue-200">
+                            We sent a 6-digit code to <b className="text-gray-900">{formData.email}</b>.
                         </div>
                         <div>
-                            <label className="block text-slate-400 text-sm mb-1">Enter Verification Code</label>
+                            <label className="block text-gray-700 text-sm font-medium mb-1">Enter Verification Code</label>
                             <input
                                 type="text"
                                 required
                                 maxLength="6"
                                 placeholder="123456"
-                                className="w-full bg-dark border border-gray-700 rounded p-2.5 text-white text-center text-xl tracking-widest focus:border-primary outline-none"
+                                className="w-full bg-white border border-gray-300 rounded p-3 text-gray-900 text-center text-xl tracking-widest focus:border-primary focus:ring-1 focus:ring-primary outline-none font-mono"
                                 value={otp}
                                 onChange={e => setOtp(e.target.value)}
                             />
                         </div>
                         <button
                             disabled={loading}
-                            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 rounded transition-colors flex justify-center items-center"
+                            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded transition-colors flex justify-center items-center disabled:opacity-50"
                         >
                             {loading ? <Loader2 className="animate-spin" /> : 'Verify & Create Account'}
                         </button>
                         <button
                             type="button"
                             onClick={goBack}
-                            className="w-full text-slate-500 hover:text-slate-300 text-sm py-2"
+                            className="w-full text-gray-600 hover:text-gray-900 text-sm py-2 font-medium"
                         >
                             Back to Details
                         </button>
@@ -167,7 +167,7 @@ export default function Register() {
                                 type="button"
                                 onClick={handleSendOtp}
                                 disabled={loading}
-                                className="text-primary hover:text-primary/80 text-sm font-medium"
+                                className="text-primary hover:text-blue-700 text-sm font-medium disabled:opacity-50"
                             >
                                 {loading ? 'Sending...' : 'Resend Verification Code'}
                             </button>
@@ -175,8 +175,8 @@ export default function Register() {
                     </form>
                 )}
 
-                <div className="mt-4 text-center text-slate-400 text-sm">
-                    Already have an account? <Link to="/login" className="text-primary hover:underline">Login</Link>
+                <div className="mt-4 text-center text-gray-600 text-sm">
+                    Already have an account? <Link to="/login" className="text-primary hover:underline font-medium">Login</Link>
                 </div>
             </div>
         </div>
