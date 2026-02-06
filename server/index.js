@@ -155,7 +155,6 @@ app.post('/api/auth/register', async (req, res) => {
         // Delete used OTP
         await Otp.deleteOne({ email });
 
-        const payload = { user: { id: admin.id } };
 
         const payload = { user: { id: admin.id } };
         jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: 36000 }, (err, token) => {
