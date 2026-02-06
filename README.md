@@ -96,7 +96,7 @@ The application will be available at `http://localhost:5173`
 ### Backend (`server/.env`)
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `MONGO_URI` | MongoDB connection string | `mongodb+srv://user:pass@cluster.mongodb.net/db` |
+| `MONGO_URI` | MongoDB connection string | `you-mongodb-atlas-connection-string-here` |
 | `JWT_SECRET` | Secret key for JWT signing | `your-secret-key-here` |
 | `EMAIL_USER` | Brevo API key | `your-brevo-api-key` |
 | `EMAIL_PASS` | Brevo API key (same as above) | `your-brevo-api-key` |
