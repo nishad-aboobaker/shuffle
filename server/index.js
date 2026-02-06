@@ -50,6 +50,34 @@ const transporter = nodemailer.createTransport({
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
+    },
+    connectionTimeout: 60000, // 60 seconds
+    greetingTimeout: 30000,
+    debug: true, // show debug output
+    logger: true // log to console
+});
+
+// Verify connection configuration
+transporter.verify(function (error, success) {
+    if (error) {
+        console.error('SMTP Connection Check Failed:', error);
+    } else {
+        console.log('Server is ready to take our messages');
+    }
+});
+
+app.post('/api/test-email', async (req, res) => {
+    try {
+        const info = await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: process.env.EMAIL_USER, // Send to self
+            subject: "Test Email from Render",
+            text: "If you see this, email is working!"
+        });
+        res.json({ success: true, message: "Email sent!", messageId: info.messageId });
+    } catch (error) {
+        console.error('Test Email Failed:', error);
+        res.status(500).json({ error: error.message, details: error });
     }
 });
 
