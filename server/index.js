@@ -311,7 +311,22 @@ app.post('/api/session/generate', auth, async (req, res) => {
 
         await batchState.save();
 
-        // G. Send Emails
+        // H. Log Session (Scoped)
+        const lastSession = await SessionLog.findOne({ batch, adminId: req.user.id }).sort({ round: -1 });
+        const roundForTheseSelections = (lastSession ? lastSession.round : 0) + 1;
+
+        const log = new SessionLog({
+            batch,
+            round: roundForTheseSelections,
+            assignments,
+            adminId: req.user.id
+        });
+        await log.save();
+
+        // Send immediate response to user for better performance
+        res.json({ success: true, assignments, round: roundForTheseSelections });
+
+        // G. Send Emails (Processed in background)
         const hostHtml = `
       <h2>Morning Session: ${new Date().toLocaleDateString()}</h2>
       <ul>
@@ -331,10 +346,10 @@ app.post('/api/session/generate', auth, async (req, res) => {
         }
 
         // Send to Admin (The User)
-        const admin = await Admin.findById(req.user.id);
-        if (admin && admin.email) {
+        const adminUser = await Admin.findById(req.user.id);
+        if (adminUser && adminUser.email) {
             sendEmail({
-                to: admin.email,
+                to: adminUser.email,
                 subject: `[ADMIN] Session Schedule - ${new Date().toLocaleDateString()}`,
                 htmlContent: hostHtml
             });
@@ -349,22 +364,6 @@ app.post('/api/session/generate', auth, async (req, res) => {
                 htmlContent: `<p>Hi <b>${a.studentName}</b>,</p><p>You are selected for <b>${a.activity}</b>.</p>`
             });
         });
-
-        // H. Log Session (Scoped)
-        // Ensure we count rounds based on the stateKey (so ALL mode has its own round 1, 2, 3)
-        // But store the display name 'ALL' or 'Batch A' in the log
-        const previousSessionCount = await SessionLog.countDocuments({ batch, adminId: req.user.id });
-        const roundForTheseSelections = previousSessionCount + 1;
-
-        const log = new SessionLog({
-            batch,
-            round: roundForTheseSelections,
-            assignments,
-            adminId: req.user.id
-        });
-        await log.save();
-
-        res.json({ success: true, assignments, round: roundForTheseSelections });
 
     } catch (error) {
         console.error(error);

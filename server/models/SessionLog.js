@@ -12,4 +12,7 @@ const SessionLogSchema = new mongoose.Schema({
     }]
 }, { timestamps: true });
 
+// Optimize history fetching and sorting for each admin
+SessionLogSchema.index({ adminId: 1, createdAt: -1 });
+
 module.exports = mongoose.model('SessionLog', SessionLogSchema);

@@ -11,4 +11,7 @@ const StudentSchema = new mongoose.Schema({
 // Compound index to prevent duplicate emails in the same batch for the same admin
 StudentSchema.index({ email: 1, batch: 1, adminId: 1 }, { unique: true });
 
+// Optimize frequent lookups for student listing
+StudentSchema.index({ adminId: 1, deleted: 1 });
+
 module.exports = mongoose.model('Student', StudentSchema);
