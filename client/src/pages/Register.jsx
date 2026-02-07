@@ -62,7 +62,7 @@ export default function Register() {
             // Let's just persist token and reload/redirect.
 
             localStorage.setItem('token', res.data.token);
-            localStorage.setItem('instituteName', res.data.instituteName);
+            localStorage.setItem('instituteName', res.data.instituteName || formData.instituteName);
             // Force reload to pick up auth or modify context?
             // Better: use `login` from context but that expects (email, password).
             // Let's redirect to login for simplicity OR update context.

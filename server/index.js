@@ -159,7 +159,7 @@ app.post('/api/auth/register', async (req, res) => {
         const payload = { user: { id: admin.id } };
         jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: 36000 }, (err, token) => {
             if (err) throw err;
-            res.json({ token });
+            res.json({ token, instituteName: admin.instituteName });
         });
     } catch (err) {
         console.error(err.message);
