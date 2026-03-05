@@ -21,6 +21,16 @@ const allowedOrigins = [
     'http://localhost:4173'
 ];
 
+
+//ping
+app.get('/ping', (req, res) => {
+  res.status(200).json({
+    message: 'pong',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()  // seconds server has been running
+  });
+});
+
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin) return callback(null, true);
